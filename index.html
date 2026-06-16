@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Libre-Share – Sàn sách sinh viên FTU</title>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+
+<!-- ══════════════════════════════
+     AUTH VIEW
+══════════════════════════════ -->
+<div id="view-auth" class="view active">
+  <div class="auth-card">
+    <div class="auth-logo-wrap">
+      <div class="auth-brand">
+        <div class="auth-brand-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        </div>
+        <div>
+          <div class="auth-brand-name">Libre-<span>Share</span></div>
+          <div class="auth-brand-sub">Sàn sách sinh viên FTU</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuthTab('login')">Đăng nhập</button>
+      <button class="auth-tab" onclick="switchAuthTab('register')">Đăng ký</button>
+    </div>
+
+    <!-- Login -->
+    <div id="auth-login">
+      <div class="form-group">
+        <label class="form-label">Email FTU</label>
+        <input class="form-input" type="email" id="login-email" placeholder="k64.mssv@ftu.edu.vn">
+        <div class="form-hint">Chỉ chấp nhận email do trường cấp (@ftu.edu.vn)</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Mật khẩu</label>
+        <input class="form-input" type="password" id="login-pass" placeholder="••••••••">
+      </div>
+      <button class="btn-auth" id="btn-login" onclick="doLogin()">Đăng nhập</button>
+    </div>
+
+    <!-- Register -->
+    <div id="auth-register" style="display:none">
+      <div class="ftu-badge">✅ Chỉ email @ftu.edu.vn được chấp nhận</div>
+      <div class="form-group">
+        <label class="form-label">Họ và tên</label>
+        <input class="form-input" type="text" id="reg-name" placeholder="Nguyễn Văn A">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email FTU</label>
+        <input class="form-input" type="email" id="reg-email" placeholder="k64.mssv@ftu.edu.vn" oninput="checkFTUEmail(this)">
+        <div class="form-hint" id="reg-email-hint">Nhập email sinh viên Ngoại Thương</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Mã số sinh viên</label>
+        <input class="form-input" type="text" id="reg-mssv" placeholder="VD: 2301001234">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Ngành học</label>
+        <select class="form-input" id="reg-major">
+          <option>Kinh tế đối ngoại</option>
+          <option>Quản trị kinh doanh</option>
+          <option>Thương mại quốc tế</option>
+          <option>Tài chính ngân hàng</option>
+          <option>Ngôn ngữ Anh</option>
+          <option>Ngôn ngữ Trung</option>
+          <option>Luật thương mại quốc tế</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Mật khẩu</label>
+        <input class="form-input" type="password" id="reg-pass" placeholder="Tối thiểu 8 ký tự">
+      </div>
+      <button class="btn-auth" id="btn-register" onclick="doRegister()">Tạo tài khoản</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════
+     MAIN APP VIEW
+══════════════════════════════ -->
+<div id="view-app" class="view">
+
+  <!-- NAVBAR -->
+  <nav class="navbar">
+    <div class="navbar-inner">
+      <a class="navbar-brand" onclick="gotoPage('home')">
+        <div class="navbar-logo">
+          <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        </div>
+        <div>
+          <div class="navbar-name">Libre-<span>Share</span></div>
+          <div class="navbar-sub">Sàn sách sinh viên FTU</div>
+        </div>
+      </a>
+
+      <nav class="navbar-nav">
+        <button class="nav-link active" id="nav-home" onclick="gotoPage('home')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          Trang chủ
+        </button>
+        <button class="nav-link" id="nav-post" onclick="gotoPage('post')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          Đăng sách
+        </button>
+        <button class="nav-link" id="nav-mybooks" onclick="gotoPage('mybooks')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          Tủ sách của tôi
+        </button>
+        <button class="nav-link" id="nav-yeu-thich" onclick="gotoPage('yeuthich')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          Yêu thích
+        </button>
+        <button class="nav-link" style="position:relative" id="nav-messages" onclick="gotoPage('messages')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          Tin nhắn
+          <span class="nav-msg-badge" id="nav-msg-badge" style="display:none">0</span>
+        </button>
+      </nav>
+
+      <div class="navbar-right">
+        <!-- Notification -->
+        <div class="user-dropdown-wrap" id="notif-wrap">
+          <button class="notif-btn" onclick="toggleDropdown('notif-dropdown')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <span class="notif-count" id="notif-count-badge">0</span>
+          </button>
+          <div class="notif-dropdown" id="notif-dropdown">
+            <div class="notif-dropdown-header">
+              <h3>Thông báo</h3>
+              <button class="notif-see-all" onclick="gotoPage('inbox');closeAllDropdowns()">Xem tất cả</button>
+            </div>
+            <div class="notif-list" id="notif-drop-list"></div>
+            <div class="notif-footer">
+              <button onclick="gotoPage('inbox');closeAllDropdowns()">Mở Hộp Thư đầy đủ</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- User menu -->
+        <div class="user-dropdown-wrap" id="user-wrap">
+          <button class="user-menu" onclick="toggleDropdown('user-dropdown')">
+            <div class="user-avatar" id="nav-avatar"></div>
+            <span class="user-name-text" id="nav-username"></span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="user-dropdown" id="user-dropdown">
+            <button class="dropdown-item" onclick="gotoPage('profile');closeAllDropdowns()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              Hồ sơ cá nhân
+            </button>
+            <button class="dropdown-item" onclick="gotoPage('mybooks');closeAllDropdowns()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+              Tủ sách của tôi
+            </button>
+            <div class="dropdown-divider"></div>
+            <button class="dropdown-item danger" onclick="doLogout();closeAllDropdowns()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              Đăng xuất
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- CONTENT AREA -->
+  <div class="content-area">
+
+    <!-- PAGE: HOME -->
+    <div class="page active" id="page-home">
+      <!-- Hero -->
+      <div class="hero">
+        <div class="hero-bg"></div>
+        <div class="hero-badge">✦ Chỉ dành cho sinh viên FTU</div>
+        <h1 class="hero-title">Libre-<span>Share</span></h1>
+        <p class="hero-desc">Sàn trao đổi sách dành riêng cho sinh viên Trường Đại học Ngoại thương. Sách xuất bản và sách photo đa dạng, giá hợp túi tiền sinh viên.</p>
+        <div class="hero-search-wrap">
+          <div class="hero-search-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </div>
+          <input class="hero-search" id="hero-search-input" placeholder="Tìm sách theo tên, tác giả, môn học..." oninput="heroSearch(this.value)">
+        </div>
+      </div>
+
+      <!-- All Books Section (Moved from page-allbooks) -->
+      <div class="main-wrap" id="home-books-section">
+        <div class="page-section">
+          <div class="allbooks-header" style="padding-top:0">
+            <h1 class="allbooks-title">Khám Phá <span>Sách</span></h1>
+            <div class="allbooks-count" id="allbooks-count">0 kết quả</div>
+          </div>
+
+          <div class="category-tabs" id="cat-tabs">
+            <button class="cat-tab active" onclick="filterCat(this,'')">Tất cả</button>
+            <button class="cat-tab" onclick="filterCat(this,'Triết học')">Triết học</button>
+            <button class="cat-tab" onclick="filterCat(this,'Kinh tế')">Kinh tế</button>
+            <button class="cat-tab" onclick="filterCat(this,'Marketing')">Marketing</button>
+            <button class="cat-tab" onclick="filterCat(this,'Tài chính')">Tài chính</button>
+            <button class="cat-tab" onclick="filterCat(this,'Kế toán')">Kế toán</button>
+            <button class="cat-tab" onclick="filterCat(this,'Luật')">Luật</button>
+            <button class="cat-tab" onclick="filterCat(this,'Ngoại thương')">Ngoại thương</button>
+            <button class="cat-tab" onclick="filterCat(this,'Logistics')">Logistics</button>
+            <button class="cat-tab" onclick="filterCat(this,'Quản trị')">Quản trị</button>
+            <button class="cat-tab" onclick="filterCat(this,'Toán')">Toán</button>
+            <button class="cat-tab" onclick="filterCat(this,'Tiếng Anh')">Tiếng Anh</button>
+            <button class="cat-tab" onclick="filterCat(this,'Kỹ năng')">Kỹ năng</button>
+          </div>
+
+          <div class="filter-row">
+            <button class="filter-btn" onclick="toggleFilterPanel()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
+              Bộ lọc <span id="filter-arrow">▾</span>
+            </button>
+            <button class="clear-filter" id="clear-filter-btn" style="display:none" onclick="clearAllFilters()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+              Xóa bộ lọc
+            </button>
+          </div>
+
+          <!-- Filter panel -->
+          <div class="filter-panel" id="filter-panel">
+            <div class="filter-group">
+              <div class="filter-group-title">Loại sách</div>
+              <div class="filter-chips">
+                <button class="filter-chip active" onclick="setFilterChip(this,'type','')">Tất cả</button>
+                <button class="filter-chip" onclick="setFilterChip(this,'type','Photo')">Photo</button>
+                <button class="filter-chip" onclick="setFilterChip(this,'type','Xuất bản')">Xuất bản</button>
+              </div>
+            </div>
+            <div class="filter-group">
+              <div class="filter-group-title">Tình trạng sách</div>
+              <div class="filter-chips">
+                <button class="filter-chip active" onclick="setFilterChip(this,'cond','')">Tất cả</button>
+                <button class="filter-chip" onclick="setFilterChip(this,'cond','Mới')">Mới</button>
+                <button class="filter-chip" onclick="setFilterChip(this,'cond','Như mới')">Như mới</button>
+                <button class="filter-chip" onclick="setFilterChip(this,'cond','Tốt')">Tốt</button>
+                <button class="filter-chip" onclick="setFilterChip(this,'cond','Khá')">Khá</button>
+                <button class="filter-chip" onclick="setFilterChip(this,'cond','Cũ')">Cũ</button>
+              </div>
+            </div>
+            <div class="filter-group">
+              <div class="filter-group-title">Trạng thái</div>
+              <div class="filter-chips">
+                <button class="filter-chip active" onclick="setFilterChip(this,'status','')">Tất cả</button>
+                <button class="filter-chip" onclick="setFilterChip(this,'status','selling')">Có sẵn</button>
+                <button class="filter-chip" onclick="setFilterChip(this,'status','exchanging')">Đang trao đổi</button>
+              </div>
+            </div>
+            <div class="filter-group">
+              <div class="filter-group-title">Khoảng giá (VNĐ)</div>
+              <div class="price-range-row">
+                <input class="price-input" type="number" id="price-from" placeholder="Từ">
+                <span style="color:var(--gray-400)">-</span>
+                <input class="price-input" type="number" id="price-to" placeholder="Đến">
+                <button class="btn-apply" onclick="applyPriceFilter()">Áp dụng</button>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+            <div class="results-info" id="results-info">Hiển thị 0 kết quả</div>
+            <div class="view-toggle">
+              <button class="view-btn active" id="view-grid-btn" onclick="setView('grid')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+              </button>
+              <button class="view-btn" id="view-list-btn" onclick="setView('list')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="18"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div id="allbooks-grid" class="books-grid"></div>
+
+          <div class="pagination" id="pagination"></div>
+        </div>
+
+        <!-- Community -->
+        <div class="community-section">
+          <h2 class="community-title">Tham Gia <span>Cộng Đồng</span> Libre-Share</h2>
+          <p class="community-desc">Hàng trăm sinh viên FTU đã và đang trao đổi sách mỗi kỳ học. Đăng ký ngay để không bỏ lỡ những cuốn sách giá tốt!</p>
+          <div class="stats-cards">
+            <div class="stat-card-comm pink">
+              <div class="stat-card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              </div>
+              <div class="stat-card-num">500+</div>
+              <div class="stat-card-label">Sinh viên FTU</div>
+            </div>
+            <div class="stat-card-comm yellow">
+              <div class="stat-card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+              </div>
+              <div class="stat-card-num">1,200+</div>
+              <div class="stat-card-label">Sách đã trao đổi</div>
+            </div>
+            <div class="stat-card-comm rose">
+              <div class="stat-card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+              </div>
+              <div class="stat-card-num">800+</div>
+              <div class="stat-card-label">Giao dịch thành công</div>
+            </div>
+          </div>
+          <button class="btn-register" onclick="gotoPage('post')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+            Đăng ký ngay – Miễn phí
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE: BOOK DETAIL -->
+    <div class="page" id="page-detail">
+      <div class="main-wrap">
+        <div class="detail-wrap" id="detail-content"></div>
+      </div>
+    </div>
+
+    <!-- PAGE: DANG SACH -->
+    <div class="page" id="page-post">
+      <div class="main-wrap">
+        <div class="post-page">
+          <h1 class="post-page-title">Đăng <span>Sách Mới</span></h1>
+          <p class="post-page-sub">Chia sẻ sách của bạn với cộng đồng FTU</p>
+
+          <div class="form-group">
+            <label class="form-label">Tên sách *</label>
+            <input class="form-input" id="p-title" placeholder="Nhập tên sách">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tác giả *</label>
+            <input class="form-input" id="p-author" placeholder="Nhập tên tác giả">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Loại sách *</label>
+            <div class="post-type-toggle">
+              <button class="post-type-btn active" id="type-photo" onclick="selectBookType('Photo',this)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                Sách Photo
+              </button>
+              <button class="post-type-btn" id="type-xuatban" onclick="selectBookType('Xuất bản',this)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                Sách Xuất Bản
+              </button>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+            <div class="form-group">
+              <label class="form-label">Giá (VNĐ) *</label>
+              <input class="form-input" type="number" id="p-price" placeholder="0">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Danh mục *</label>
+              <select class="form-input" id="p-dept">
+                <option value="">Chọn danh mục</option>
+                <option>Kinh tế</option>
+                <option>Triết học</option>
+                <option>Marketing</option>
+                <option>Tài chính</option>
+                <option>Kế toán</option>
+                <option>Luật</option>
+                <option>Ngoại thương</option>
+                <option>Logistics</option>
+                <option>Quản trị</option>
+                <option>Toán</option>
+                <option>Tiếng Anh</option>
+                <option>Kỹ năng</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tình trạng sách *</label>
+            <div class="cond-chips">
+              <button class="cond-chip" onclick="selectCond(this,'Mới')">Mới</button>
+              <button class="cond-chip" onclick="selectCond(this,'Như mới')">Như mới</button>
+              <button class="cond-chip active" onclick="selectCond(this,'Tốt')">Tốt</button>
+              <button class="cond-chip" onclick="selectCond(this,'Khá')">Khá</button>
+              <button class="cond-chip" onclick="selectCond(this,'Cũ')">Cũ</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Ảnh / Video sách</label>
+            <div class="upload-zone" onclick="document.getElementById('img-upload').click()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              <p>Kéo thả ảnh/video vào đây</p>
+              <span>hoặc bấm để chọn file (PNG, JPG, WebP, MP4, WebM)</span><br>
+              <span>Tối đa 50MB / file</span>
+            </div>
+            <input type="file" id="img-upload" multiple accept="image/*,video/*" style="display:none" onchange="handleImgUpload(this)">
+            <div class="uploaded-imgs" id="img-preview"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Ghi chú</label>
+            <textarea class="form-input" id="p-notes" rows="4" placeholder="Mô tả chi tiết về sách, tình trạng, lý do pass..." style="resize:vertical"></textarea>
+            <div style="text-align:right;font-size:12px;color:var(--gray-400);margin-top:4px">0/500</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Phương thức liên hệ</label>
+            <div class="contact-display-row">
+              <div class="contact-display-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+                <span id="display-fb" style="font-size:13px;color:var(--gray-500)">Chưa có Facebook</span>
+              </div>
+              <div class="contact-display-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <span id="display-zalo" style="font-size:13px;color:var(--gray-500)">Chưa có Zalo</span>
+              </div>
+            </div>
+          </div>
+          <button class="btn-submit-post" id="btn-submit-post" onclick="submitPost()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+            Đăng sách
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE: TU SACH (MY BOOKS) -->
+    <div class="page" id="page-mybooks">
+      <div class="main-wrap">
+        <div class="mybooks-page">
+          <div class="section-header" style="margin-bottom:0">
+            <h1 class="allbooks-title">Tủ <span style="color:var(--red)">Sách</span> Của Tôi</h1>
+          </div>
+          <div class="mybooks-tabs">
+            <button class="mybooks-tab active" onclick="switchMybooksTab(this,'mb-all')">Tất cả</button>
+            <button class="mybooks-tab" onclick="switchMybooksTab(this,'mb-selling')">Đang bán</button>
+            <button class="mybooks-tab" onclick="switchMybooksTab(this,'mb-exchange')">Đang trao đổi</button>
+            <button class="mybooks-tab" onclick="switchMybooksTab(this,'mb-done')">Đã trao đổi</button>
+            <button class="mybooks-tab" onclick="switchMybooksTab(this,'mb-bought')">Sách đã mua</button>
+          </div>
+          <div id="mb-all"><div id="mybooks-list"></div></div>
+          <div id="mb-selling" style="display:none"><div id="mybooks-selling-list"></div></div>
+          <div id="mb-exchange" style="display:none"><div id="mybooks-exchange-list"></div></div>
+          <div id="mb-done" style="display:none"><div id="mybooks-done-list"></div></div>
+          <div id="mb-bought" style="display:none"><div id="mybooks-bought-list"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE: YEU THICH -->
+    <div class="page" id="page-yeuthich">
+      <div class="main-wrap">
+        <h1 class="yeu-thich-title" style="margin-bottom:4px">Sách <span>Yêu Thích</span></h1>
+        <p style="color:var(--gray-500);font-size:14px;margin-bottom:28px">Những cuốn sách bạn đã lưu lại</p>
+        <div class="books-grid" id="wishlist-grid"></div>
+      </div>
+    </div>
+
+    <!-- PAGE: INBOX -->
+    <div class="page" id="page-inbox">
+      <div class="main-wrap">
+        <div class="inbox-page">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div>
+              <h1 class="inbox-title">Hộp <span>Thư</span></h1>
+              <p class="inbox-sub" id="inbox-sub-text">0 thông báo</p>
+            </div>
+            <button class="inbox-mark-all" onclick="markAllRead()">Đánh dấu đã đọc tất cả</button>
+          </div>
+          <div class="inbox-tabs">
+            <button class="inbox-tab active" onclick="switchInboxTab(this,'inbox-all')">Tất cả <span class="inbox-count-badge" id="inbox-all-count">0</span></button>
+            <button class="inbox-tab" onclick="switchInboxTab(this,'inbox-unread')">Chưa đọc <span class="inbox-count-badge" id="inbox-unread-count">0</span></button>
+          </div>
+          <div id="inbox-all"><div id="inbox-list"></div></div>
+          <div id="inbox-unread" style="display:none"><div id="inbox-unread-list"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE: PROFILE -->
+    <div class="page" id="page-profile">
+      <div class="main-wrap">
+        <div class="profile-page">
+          <div class="profile-top">
+            <div class="profile-avatar-xl" id="prof-avatar"></div>
+            <div class="profile-info-top">
+              <h2 id="prof-name"></h2>
+              <div class="profile-email" id="prof-email"></div>
+            </div>
+          </div>
+
+          <div class="profile-section-title">Thông tin <span>tài khoản</span></div>
+          <div class="profile-stats-row">
+            <div class="profile-stat-card">
+              <div class="profile-stat-label">Ngày tham gia</div>
+              <div class="profile-stat-val" id="prof-join-date" style="font-size:15px;margin-top:4px">-</div>
+            </div>
+            <div class="profile-stat-card">
+              <div class="profile-stat-label">Tổng sách đã đăng</div>
+              <div class="profile-stat-val" id="prof-book-count">0 cuốn</div>
+            </div>
+            <div class="profile-stat-card">
+              <div class="profile-stat-label">Giao dịch thành công</div>
+              <div class="profile-stat-val" id="prof-deal-count">0 giao dịch</div>
+            </div>
+          </div>
+
+          <div class="profile-form-section">
+            <div class="form-group">
+              <label class="form-label">Họ và tên</label>
+              <input class="form-input" id="prof-name-input" value="">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Email FTU</label>
+              <input class="form-input" id="prof-email-input" disabled style="background:var(--gray-50);color:var(--gray-400)">
+              <div class="email-locked">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                Email FTU không thể thay đổi
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+              <div class="form-group">
+                <label class="form-label">
+                  <svg style="width:14px;height:14px;vertical-align:middle;margin-right:4px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+                  Link Facebook
+                </label>
+                <input class="form-input" id="prof-facebook" placeholder="https://www.facebook.com/...">
+              </div>
+              <div class="form-group">
+                <label class="form-label">
+                  <svg style="width:14px;height:14px;vertical-align:middle;margin-right:4px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                  Số Zalo
+                </label>
+                <input class="form-input" id="prof-zalo" placeholder="0xxxxxxxxx">
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;margin-top:8px">
+              <button class="btn-update" onclick="saveProfile()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                Cập nhật hồ sơ
+              </button>
+              <button class="btn-undo" onclick="resetProfile()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.68"/></svg>
+                Hoàn tác
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE: MESSAGES -->
+    <div class="page" id="page-messages">
+      <div class="main-wrap">
+        <div class="section-header" style="margin-bottom:20px">
+          <h1 class="allbooks-title">Tin <span>Nhắn</span></h1>
+        </div>
+        <div class="msg-list-wrap">
+          <div class="conv-sidebar" id="conv-list-container">
+            <!-- conv list goes here -->
+          </div>
+          <div class="msg-main-view" id="msg-main-view">
+            <div class="empty-state" style="height:100%;display:flex;flex-direction:column;justify-content:center"><div class="empty-icon">💬</div><h3>Chọn một cuộc trò chuyện</h3><p>hoặc bắt đầu chat từ trang chi tiết sách</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /.content-area -->
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="footer-inner">
+      <div>
+        <div class="footer-brand-name">Libre-<span>Share</span></div>
+        <p class="footer-desc">Nền tảng trao đổi sách dành riêng cho sinh viên Trường Đại học Ngoại thương. Kết nối – Chia sẻ – Tiết kiệm.</p>
+      </div>
+      <div>
+        <div class="footer-col-title">Truy cập nhanh</div>
+        <a class="footer-link" onclick="gotoPage('home')">Trang chủ</a>
+        <a class="footer-link" onclick="gotoPage('post')">Đăng sách</a>
+        <a class="footer-link" onclick="gotoPage('mybooks')">Tủ sách của tôi</a>
+        <a class="footer-link" onclick="gotoPage('yeuthich')">Yêu thích</a>
+      </div>
+      <div>
+        <div class="footer-col-title">Danh mục phổ biến</div>
+        <a class="footer-link">Kinh tế</a>
+        <a class="footer-link">Marketing</a>
+        <a class="footer-link">Tài chính – Kế toán</a>
+        <a class="footer-link">Luật – Ngoại thương</a>
+      </div>
+      <div>
+        <div class="footer-col-title">Liên hệ</div>
+        <div class="footer-contact-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          libre-share@gmail.com
+        </div>
+        <div class="footer-contact-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          91 Chùa Láng, Đống Đa, Hà Nội
+        </div>
+        <div class="footer-social">
+          <button class="social-btn">f</button>
+          <button class="social-btn">📷</button>
+          <button class="social-btn">♪</button>
+        </div>
+      </div>
+    </div>
+    <div style="max-width:1280px;margin:0 auto">
+      <div class="footer-bottom">
+        <span class="footer-bottom-text">© 2026 Libre-Share. Dành riêng cho sinh viên Trường Đại học Ngoại thương.</span>
+        <div class="footer-bottom-links">
+          <a href="#">Điều khoản sử dụng</a>
+          <a href="#">Chính sách bảo mật</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- CHAT WIDGET -->
+  <div class="chat-widget" id="chat-widget">
+    <div class="chat-header">
+      <div class="chat-header-info">
+        <div class="chat-avatar" id="cw-avatar">U</div>
+        <div>
+          <div class="chat-name" id="cw-name">Tên người bán</div>
+          <div class="chat-context" id="cw-context">Đang tải...</div>
+        </div>
+      </div>
+      <button class="chat-close-btn" onclick="closeChatWidget()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="chat-body" id="cw-body">
+      <!-- msgs -->
+    </div>
+    <div class="chat-input-area">
+      <input type="text" class="chat-input" id="cw-input" placeholder="Nhập tin nhắn..." onkeypress="if(event.key==='Enter') sendMsgFromWidget()">
+      <button class="chat-send-btn" id="cw-send-btn" onclick="sendMsgFromWidget()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>
+  </div>
+
+</div><!-- /#view-app -->
+
+<!-- Toast container -->
+<div class="toast-container" id="toasts"></div>
+
+<!-- Confirm complete deal modal -->
+<div class="confirm-overlay" id="confirm-overlay">
+  <div class="confirm-modal">
+    <div class="confirm-modal-icon">🎉</div>
+    <h3>Xác nhận hoàn thành?</h3>
+    <p id="confirm-modal-msg">Bạn xác nhận đã giao sách thành công cho người mua?<br>Hành động này không thể hoàn tác.</p>
+    <div class="confirm-modal-btns">
+      <button class="btn-confirm-cancel" onclick="closeConfirm()">Huỷ</button>
+      <button class="btn-confirm-ok" id="confirm-ok-btn" onclick="confirmCompleteDeal()">✅ Hoàn thành</button>
+    </div>
+  </div>
+</div>
+
+<!-- Supabase JS SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
