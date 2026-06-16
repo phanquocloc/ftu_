@@ -1414,3 +1414,54 @@ h1, h2, h3, .hero-title, .section-title, .post-page-title, .auth-brand-name, .na
 .price-slider::-webkit-slider-thumb:hover {
   transform: scale(1.2);
 }
+
+/* ══════════════════════════════
+   LỊCH SỬ HOẠT ĐỘNG TIMELINE
+══════════════════════════════ */
+.activity-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 10px 0;
+}
+.activity-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  background: white;
+  padding: 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--gray-200);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.activity-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+.act-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.act-content {
+  flex: 1;
+}
+.act-title {
+  font-size: 15px;
+  color: var(--gray-800);
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+.act-title strong {
+  font-weight: 700;
+  color: var(--gray-900);
+}
+.act-time {
+  font-size: 13px;
+  color: var(--gray-500);
+}

@@ -292,6 +292,7 @@ async function loginSuccess() {
   renderWishlist();
   updateNotifCount();
   initRealtimeChat();
+  checkFavoriteCategoryNewBooks();
 
   showToast(`Chào mừng ${currentUser.name}! 👋`, 'success');
 }
@@ -458,6 +459,7 @@ async function promptEditPrice(id) {
 
         // Update Supabase
         await supabase.from('books').update({ price: newPrice }).eq('id', id);
+        logLocalActivity(`Bạn đã cập nhật giá cuốn <strong>"${book.title}"</strong> thành <strong>${fmtPrice(newPrice)}</strong>`, '💰', '#D97706', '#FEF3C7');
         showToast('✅ Đã cập nhật giá mới thành công!', 'success');
       } catch (err) {
         showToast('Lỗi cập nhật giá: ' + err.message, 'error');
@@ -466,6 +468,40 @@ async function promptEditPrice(id) {
       showToast('Giá nhập vào không hợp lệ', 'error');
     }
   }
+}
+
+async function confirmDeleteBook(id) {
+  const book = BOOKS.find(b => b.id === id);
+  if (!book) return;
+  if (confirm(`Bạn có chắc chắn muốn xóa cuốn "${book.title}" không? Hành động này không thể hoàn tác.`)) {
+    try {
+      // Xóa trên giao diện
+      BOOKS = BOOKS.filter(b => b.id !== id);
+      renderHomeBooks();
+      if (document.getElementById('page-mybooks').classList.contains('active')) renderMyBooks();
+      gotoPage('home');
+      
+      // Xóa trên Supabase
+      await supabase.from('books').delete().eq('id', id);
+      logLocalActivity(`Bạn đã xóa cuốn sách <strong>"${book.title}"</strong> khỏi tủ sách`, '🗑️', '#DC2626', '#FEE2E2');
+      showToast('🗑️ Đã xóa sách thành công!', 'success');
+    } catch (err) {
+      showToast('Lỗi khi xóa: ' + err.message, 'error');
+    }
+  }
+}
+function logLocalActivity(title, icon, iconColor, bg) {
+  if (!currentUser) return;
+  const key = 'user_act_' + currentUser.id;
+  const logs = JSON.parse(localStorage.getItem(key) || '[]');
+  logs.push({
+    title,
+    icon,
+    iconColor,
+    bg,
+    date: new Date().toISOString()
+  });
+  localStorage.setItem(key, JSON.stringify(logs));
 }
 
 function relativeDate(dateStr) {
@@ -621,11 +657,11 @@ function heroSearch(q) {
 
   setTimeout(() => {
     activeFilters = { cat: '', type: '', cond: '', status: '', priceFrom: 0, priceTo: 0 };
-    const filtered = BOOKS.filter(b =>
+    const filtered = BOOKS.filter(b => b.status !== 'done' && (
       b.title.toLowerCase().includes(q.toLowerCase()) ||
       b.author.toLowerCase().includes(q.toLowerCase()) ||
       b.dept.toLowerCase().includes(q.toLowerCase())
-    );
+    ));
     document.getElementById('allbooks-grid').innerHTML = filtered.length ? filtered.map(bookCardHTML).join('') :
       `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">📭</div><h3>Không tìm thấy sách</h3><p>Thử từ khóa khác</p></div>`;
     document.getElementById('allbooks-count').textContent = `${filtered.length} kết quả`;
@@ -688,10 +724,16 @@ function openDetail(id) {
       </button>
       <div class="detail-action-row">
         ${currentUser && (book.seller_id === currentUser.id || book.seller_email === currentUser.email)
-      ? `<button class="btn-buy-detail" style="background:#C9960C" onclick="promptEditPrice(${book.id})">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-              Điều chỉnh giá
-            </button>`
+      ? `<div style="display:flex; gap:8px; flex:1">
+            <button class="btn-buy-detail" style="background:#C9960C; flex:1" onclick="promptEditPrice(${book.id})">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              Sửa giá
+            </button>
+            <button class="btn-buy-detail" style="background:var(--red); flex:1" onclick="confirmDeleteBook(${book.id})">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              Xóa sách
+            </button>
+          </div>`
       : `<button class="btn-buy-detail" onclick="doBuy(${book.id})" ${book.status !== 'selling' ? 'disabled style="opacity:0.5"' : ''}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
               ${book.status === 'selling' ? 'Đặt mua' : book.status === 'exchanging' ? 'Đang chờ duyệt' : 'Đã bán'}
@@ -773,6 +815,7 @@ function toggleWish(id, btn) {
         unread: true
       });
     }
+    setTimeout(() => checkFavoriteCategoryNewBooks(), 500);
   }
   renderWishlist();
 }
@@ -797,6 +840,7 @@ function toggleWishDetail(id, btn) {
         unread: true
       });
     }
+    setTimeout(() => checkFavoriteCategoryNewBooks(), 500);
   }
   renderWishlist();
 }
@@ -976,10 +1020,72 @@ function renderMyBooks() {
 
   document.getElementById('mybooks-done-list').innerHTML = mine.filter(b => b.status === 'done').map(b => myBookRowHTML(b, 'done')).join('') || '<div class="empty-state"><div class="empty-icon">🎉</div><h3>Chưa có giao dịch hoàn thành</h3></div>';
 
-  // "Sách đã mua" tab: chỉ hiện sách đã được người bán duyệt (status: 'done')
+  // Sách đã mua tab
   const boughtContainer = document.getElementById('mybooks-bought-list');
   if (boughtContainer) {
     boughtContainer.innerHTML = boughtDone.length ? boughtDone.map(b => myBookRowHTML(b, 'bought')).join('') : '<div class="empty-state"><div class="empty-icon">🛒</div><h3>Chưa mua cuốn sách nào</h3><p>Sách sẽ xuất hiện ở đây khi người bán duyệt đơn</p></div>';
+  }
+
+  // Lịch sử hoạt động tab
+  const historyContainer = document.getElementById('mybooks-history-list');
+  if (historyContainer) {
+    const historyItems = [];
+    mine.forEach(b => {
+      historyItems.push({
+        date: new Date(b.created_at || b.date),
+        html: `<div class="activity-item">
+                 <div class="act-icon" style="background:var(--blue-100);color:var(--blue-600)">📚</div>
+                 <div class="act-content">
+                   <div class="act-title">Bạn đã đăng cuốn <strong>"${b.title}"</strong></div>
+                   <div class="act-time">${new Date(b.created_at || b.date).toLocaleString('vi-VN')}</div>
+                 </div>
+               </div>`
+      });
+      if (b.status === 'done') {
+        historyItems.push({
+          date: new Date(b.updated_at || b.created_at || b.date),
+          html: `<div class="activity-item">
+                   <div class="act-icon" style="background:var(--green-100);color:var(--green-600)">🎉</div>
+                   <div class="act-content">
+                     <div class="act-title">Bạn đã bán thành công cuốn <strong>"${b.title}"</strong> cho <strong>${b.buyer_name || 'người khác'}</strong> với giá <strong>${fmtPrice(b.price)}</strong></div>
+                     <div class="act-time">${new Date(b.updated_at || b.created_at || b.date).toLocaleString('vi-VN')}</div>
+                   </div>
+                 </div>`
+        });
+      }
+    });
+    boughtDone.forEach(b => {
+      historyItems.push({
+        date: new Date(b.updated_at || b.created_at || b.date),
+        html: `<div class="activity-item">
+                 <div class="act-icon" style="background:var(--amber-100);color:var(--amber-600)">🛒</div>
+                 <div class="act-content">
+                   <div class="act-title">Bạn đã mua thành công cuốn <strong>"${b.title}"</strong> từ <strong>${b.seller_name}</strong> với giá <strong>${fmtPrice(b.price)}</strong></div>
+                   <div class="act-time">${new Date(b.updated_at || b.created_at || b.date).toLocaleString('vi-VN')}</div>
+                 </div>
+               </div>`
+      });
+    });
+
+    if (currentUser) {
+      const key = 'user_act_' + currentUser.id;
+      const localLogs = JSON.parse(localStorage.getItem(key) || '[]');
+      localLogs.forEach(lg => {
+        historyItems.push({
+          date: new Date(lg.date),
+          html: `<div class="activity-item">
+                   <div class="act-icon" style="background:${lg.bg || 'var(--gray-100)'};color:${lg.iconColor || 'var(--gray-600)'}">${lg.icon || '📝'}</div>
+                   <div class="act-content">
+                     <div class="act-title">${lg.title}</div>
+                     <div class="act-time">${new Date(lg.date).toLocaleString('vi-VN')}</div>
+                   </div>
+                 </div>`
+        });
+      });
+    }
+
+    historyItems.sort((a, b) => b.date - a.date);
+    historyContainer.innerHTML = historyItems.length ? historyItems.map(i => i.html).join('') : '<div class="empty-state"><div class="empty-icon">⏳</div><h3>Chưa có hoạt động nào</h3></div>';
   }
 
   document.getElementById('prof-book-count').textContent = `${mine.length} cuốn`;
@@ -989,7 +1095,7 @@ function renderMyBooks() {
 function switchMybooksTab(btn, tabId) {
   btn.closest('.mybooks-tabs').querySelectorAll('.mybooks-tab').forEach(t => t.classList.remove('active'));
   btn.classList.add('active');
-  ['mb-all', 'mb-selling', 'mb-exchange', 'mb-done', 'mb-bought'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+  ['mb-all', 'mb-selling', 'mb-exchange', 'mb-done', 'mb-bought', 'mb-history'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
   document.getElementById(tabId).style.display = '';
 }
 
@@ -1290,6 +1396,12 @@ function initRealtimeChat() {
         showToast('🔔 ' + newNotif.title, 'success');
       }
     })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'books' }, payload => {
+      const newBook = payload.new;
+      BOOKS.unshift(newBook);
+      if (document.getElementById('page-home').classList.contains('active')) renderHomeBooks();
+      checkFavoriteCategoryNewBooks();
+    })
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'books' }, payload => {
       const updatedBook = payload.new;
       const idx = BOOKS.findIndex(b => b.id === updatedBook.id);
@@ -1544,3 +1656,57 @@ function openChatFromMessages(convId) {
   startChat(conv.otherUser.id, conv.otherUser.name, conv.bookId);
 }
 console.log("Debug NOTIFS:", NOTIFS);
+
+// ════════════════════════════════════
+//  FAVORITE CATEGORY NOTIFICATIONS
+// ════════════════════════════════════
+function checkFavoriteCategoryNewBooks() {
+  if (!currentUser || wishedIds.size === 0) return;
+  
+  const favCats = new Set([...wishedIds].map(id => BOOKS.find(b => b.id === id)?.dept).filter(Boolean));
+  if (favCats.size === 0) return;
+  
+  const notifiedSet = new Set(JSON.parse(localStorage.getItem('fav_notified_books_' + currentUser.id) || '[]'));
+  let newNotifsCount = 0;
+  
+  for (const book of BOOKS) {
+    if (book.seller_id === currentUser.id || book.seller_email === currentUser.email) continue;
+    if (book.status !== 'selling') continue;
+    if (notifiedSet.has(book.id)) continue;
+    
+    // Only check books created in the last 14 days
+    const ageDays = (new Date() - new Date(book.created_at || book.date)) / (1000 * 60 * 60 * 24);
+    if (ageDays > 14) continue;
+
+    if (favCats.has(book.dept)) {
+      notifiedSet.add(book.id);
+      newNotifsCount++;
+      
+      const notif = {
+        user_id: currentUser.id,
+        type: 'system',
+        title: `Sách mới trong danh mục ${book.dept}`,
+        body: `Cuốn "${book.title}" vừa có sẵn với giá ${fmtPrice(book.price)}. Xem ngay!`,
+        book_id: book.id,
+        unread: true
+      };
+      
+      saveNotificationToSupabase(notif).then(data => {
+        if (data) {
+          NOTIFS.unshift(data);
+          updateNotifCount();
+        }
+      });
+    }
+  }
+  
+  if (newNotifsCount > 0) {
+    localStorage.setItem('fav_notified_books_' + currentUser.id, JSON.stringify([...notifiedSet]));
+    setTimeout(() => {
+      showToast(`🔔 Có ${newNotifsCount} sách mới thuộc danh mục bạn yêu thích!`, 'success');
+      renderNotifDropdown();
+      if (document.getElementById('page-inbox').classList.contains('active')) renderInbox();
+    }, 1500);
+  }
+}
+
