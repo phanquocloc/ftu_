@@ -1341,3 +1341,76 @@ h1, h2, h3, .hero-title, .section-title, .post-page-title, .auth-brand-name, .na
   .hero::before { top: 28px; height: 132px; }
   .hero::after { opacity: 0.34; right: 8px; bottom: 18px; }
 }
+
+.contact-icon-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 20px; border-radius: 10px;
+  font-size: 14px; font-weight: 600;
+  text-decoration: none; cursor: pointer;
+  transition: all .2s; border: 1.5px solid transparent;
+}
+.contact-icon-btn svg { flex-shrink: 0; }
+.contact-fb-btn {
+  background: #E7F0FF; color: #1877F2; border-color: #BFDBFE;
+}
+.contact-fb-btn:hover {
+  background: #1877F2; color: white; border-color: #1877F2;
+  transform: translateY(-1px); box-shadow: 0 4px 12px rgba(24,119,242,0.3);
+}
+.contact-zalo-btn {
+  background: #E0F4FF; color: #0068FF; border-color: #B3E0FF;
+}
+.contact-zalo-btn:hover {
+  background: #0068FF; color: white; border-color: #0068FF;
+  transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,104,255,0.3);
+}
+.contact-disabled {
+  background: var(--gray-50); color: var(--gray-400); border-color: var(--gray-200);
+  cursor: default; opacity: 0.6;
+}
+
+/* Highlight user's own book */
+.book-card-mine {
+  border: 2px solid #C9960C;
+  box-shadow: 0 4px 15px rgba(201, 150, 12, 0.2);
+  background: linear-gradient(to bottom, #FFFDF5, #FFFFFF);
+}
+.book-card-mine .book-title-card {
+  color: #C9960C;
+}
+.btn-edit-price {
+  background: #C9960C;
+  color: white;
+}
+.btn-edit-price:hover {
+  background: #a67a09;
+}
+
+.price-slider-wrap {
+  margin: 15px 0 20px;
+  padding: 15px;
+  background: var(--gray-50);
+  border-radius: 12px;
+}
+.price-slider {
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  height: 6px;
+  background: var(--gray-200);
+  border-radius: 3px;
+  outline: none;
+}
+.price-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--red);
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+.price-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}

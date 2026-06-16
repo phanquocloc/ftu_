@@ -356,7 +356,7 @@ function gotoPage(pageId) {
   if (navMap[pageId]) document.getElementById(navMap[pageId])?.classList.add('active');
   window.scrollTo(0, 0);
   if (pageId === 'home') renderAllBooks();
-  if (pageId === 'mybooks') renderMyBooks();
+  if (pageId === 'mybooks') { loadBooksFromSupabase().then(() => renderMyBooks()); }
   if (pageId === 'inbox') renderInbox();
   if (pageId === 'yeuthich') renderWishlist();
   if (pageId === 'messages') {
@@ -383,6 +383,20 @@ document.addEventListener('click', e => {
   if (!e.target.closest('.user-dropdown-wrap')) closeAllDropdowns();
 });
 
+// Random notifications task
+setInterval(() => {
+  if (BOOKS.length === 0) return;
+  // Pick random book not owned by user
+  const availableBooks = BOOKS.filter(b => b.status === 'selling' && b.seller_id !== currentUser?.id);
+  if (availableBooks.length > 0) {
+    const randomBook = availableBooks[Math.floor(Math.random() * availableBooks.length)];
+    // 20% chance to show a toast every 45 seconds
+    if (Math.random() < 0.2) {
+      showToast(`🌟 Khám phá sách mới: "${randomBook.title}" giá chỉ ${fmtPrice(randomBook.price)}`, 'success');
+    }
+  }
+}, 45000);
+
 // ════════════════════════════════════
 //  BOOK CARDS
 // ════════════════════════════════════
@@ -390,7 +404,17 @@ const condClassMap = { 'Mới': 'cond-moi', 'Như mới': 'cond-nhumu', 'Tốt':
 
 function bookCardHTML(book) {
   const wished = wishedIds.has(book.id);
-  return `<div class="book-card" onclick="openDetail(${book.id})">
+  const isMine = currentUser && (book.seller_id === currentUser.id || book.seller_email === currentUser.email);
+
+  let actionButton = `<button class="btn-buy-card" onclick="event.stopPropagation();openDetail(${book.id})">Đặt mua</button>`;
+  if (isMine) {
+    actionButton = `<button class="btn-buy-card btn-edit-price" onclick="event.stopPropagation();promptEditPrice(${book.id})">
+      <svg style="width:14px;height:14px;vertical-align:middle;margin-right:4px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      Điều chỉnh giá
+    </button>`;
+  }
+
+  return `<div class="book-card ${isMine ? 'book-card-mine' : ''}" onclick="openDetail(${book.id})">
     <div class="book-card-img">
       ${book.imgs && book.imgs[0] && book.imgs[0].startsWith('data:')
       ? `<img src="${book.imgs[0]}" alt="${book.title}">`
@@ -413,9 +437,35 @@ function bookCardHTML(book) {
         <span><span class="seller-avatar-sm">${book.seller_name.charAt(0).toUpperCase()}</span>${book.seller_name}</span>
         <span>${relativeDate(book.date)}</span>
       </div>
-      <button class="btn-buy-card" onclick="event.stopPropagation();openDetail(${book.id})">Mua ngay</button>
+      ${actionButton}
     </div>
   </div>`;
+}
+
+async function promptEditPrice(id) {
+  const book = BOOKS.find(b => b.id === id);
+  if (!book) return;
+
+  const newPriceStr = prompt(`Nhập giá mới cho cuốn "${book.title}":`, book.price);
+  if (newPriceStr !== null) {
+    const newPrice = parseInt(newPriceStr.replace(/\D/g, ''));
+    if (!isNaN(newPrice) && newPrice > 0) {
+      try {
+        // Update local immediately for responsive UI
+        book.price = newPrice;
+        renderHomeBooks();
+        if (document.getElementById('page-mybooks').classList.contains('active')) renderMyBooks();
+
+        // Update Supabase
+        await supabase.from('books').update({ price: newPrice }).eq('id', id);
+        showToast('✅ Đã cập nhật giá mới thành công!', 'success');
+      } catch (err) {
+        showToast('Lỗi cập nhật giá: ' + err.message, 'error');
+      }
+    } else {
+      showToast('Giá nhập vào không hợp lệ', 'error');
+    }
+  }
 }
 
 function relativeDate(dateStr) {
@@ -507,6 +557,27 @@ function applyPriceFilter() {
   document.getElementById('clear-filter-btn').style.display = 'flex';
 }
 
+function updatePriceSlider(val) {
+  val = parseInt(val);
+  const displayEl = document.getElementById('price-slider-val');
+  if (val >= 5000000) {
+    displayEl.textContent = 'Tất cả mức giá';
+    activeFilters.priceTo = 0;
+  } else {
+    displayEl.textContent = 'Dưới ' + fmtPrice(val);
+    activeFilters.priceTo = val;
+  }
+  activeFilters.priceFrom = 0;
+  currentPage = 1;
+  const hasClear = activeFilters.cat || activeFilters.type || activeFilters.cond || activeFilters.status || activeFilters.priceTo > 0;
+  document.getElementById('clear-filter-btn').style.display = hasClear ? 'flex' : 'none';
+  
+  document.getElementById('price-to').value = activeFilters.priceTo || '';
+  document.getElementById('price-from').value = '';
+  
+  renderAllBooks();
+}
+
 function clearAllFilters() {
   activeFilters = { cat: '', type: '', cond: '', status: '', priceFrom: 0, priceTo: 0 };
   currentPage = 1;
@@ -517,6 +588,11 @@ function clearAllFilters() {
   });
   document.getElementById('price-from').value = '';
   document.getElementById('price-to').value = '';
+  const slider = document.getElementById('main-price-slider');
+  if (slider) {
+    slider.value = 5000000;
+    document.getElementById('price-slider-val').textContent = 'Tất cả mức giá';
+  }
   document.getElementById('clear-filter-btn').style.display = 'none';
   renderAllBooks();
 }
@@ -573,7 +649,7 @@ function openDetail(id) {
     </div>
     <div>
       <div class="detail-badges">
-        <span class="detail-badge db-avail">${book.status === 'selling' ? 'Có sẵn' : book.status === 'exchanging' ? 'Đang trao đổi' : 'Đã bán'}</span>
+        <span class="detail-badge db-avail">${book.status === 'selling' ? 'Có sẵn' : book.status === 'exchanging' ? 'Đang chờ duyệt' : 'Đã bán'}</span>
         <span class="detail-badge db-type">${book.type === 'Photo' ? 'Sách Photo' : 'Sách Xuất Bản'}</span>
       </div>
       <h1 class="detail-title">${book.title}</h1>
@@ -601,9 +677,9 @@ function openDetail(id) {
           <h4 style="margin:0">Thông tin liên hệ người bán</h4>
           ${currentUser && currentUser.id !== book.seller_id ? `<button class="btn-buy-card" style="width:auto; padding:6px 16px; margin:0" onclick="startChat('${book.seller_id}', '${book.seller_name.replace(/'/g, "\\'")}', ${book.id})"><svg style="width:14px;height:14px;vertical-align:middle;margin-right:4px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Chat trực tiếp</button>` : ''}
         </div>
-        <div class="contact-links">
-          ${book.contact ? `<div class="contact-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg> ${book.contact}</div>` : ''}
-          ${book.zalo_number ? `<div class="contact-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Zalo: ${book.zalo_number}</div>` : ''}
+        <div class="contact-links" style="display:flex;gap:12px;flex-wrap:wrap">
+          ${book.contact ? `<a href="${book.contact.startsWith('http') ? book.contact : 'https://' + book.contact}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="contact-icon-btn contact-fb-btn" title="Mo Facebook"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg><span>Facebook</span></a>` : '<div class="contact-icon-btn contact-disabled"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg><span>Chua co FB</span></div>'}
+          ${book.zalo_number ? `<a href="https://zalo.me/${book.zalo_number}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="contact-icon-btn contact-zalo-btn" title="Mo Zalo"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 2C6.48 2 2 6.04 2 11c0 2.62 1.23 4.96 3.15 6.57L4 22l4.79-2.06C9.82 20.3 10.88 20.5 12 20.5c5.52 0 10-4.04 10-9S17.52 2 12 2z"/></svg><span>Zalo</span></a>` : '<div class="contact-icon-btn contact-disabled"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 2C6.48 2 2 6.04 2 11c0 2.62 1.23 4.96 3.15 6.57L4 22l4.79-2.06C9.82 20.3 10.88 20.5 12 20.5c5.52 0 10-4.04 10-9S17.52 2 12 2z"/></svg><span>Chua co Zalo</span></div>'}
         </div>
       </div>
       <button class="btn-contact" onclick="revealContact()">
@@ -611,10 +687,16 @@ function openDetail(id) {
         Xem thông tin liên hệ
       </button>
       <div class="detail-action-row">
-        <button class="btn-buy-detail" onclick="doBuy(${book.id})" ${book.status !== 'selling' ? 'disabled style="opacity:0.5"' : ''}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
-          ${book.status === 'selling' ? 'Mua ngay' : 'Đã có người mua'}
-        </button>
+        ${currentUser && (book.seller_id === currentUser.id || book.seller_email === currentUser.email)
+      ? `<button class="btn-buy-detail" style="background:#C9960C" onclick="promptEditPrice(${book.id})">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              Điều chỉnh giá
+            </button>`
+      : `<button class="btn-buy-detail" onclick="doBuy(${book.id})" ${book.status !== 'selling' ? 'disabled style="opacity:0.5"' : ''}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+              ${book.status === 'selling' ? 'Đặt mua' : book.status === 'exchanging' ? 'Đang chờ duyệt' : 'Đã bán'}
+            </button>`
+    }
         <button class="btn-action-sm" onclick="toggleWishDetail(${book.id},this)">
           <svg viewBox="0 0 24 24" fill="${wished ? 'var(--red)' : 'none'}" stroke="${wished ? 'var(--red)' : 'currentColor'}" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
           ${wished ? 'Đã yêu thích' : 'Yêu thích'}
@@ -636,32 +718,34 @@ function revealContact() {
 async function doBuy(id) {
   const book = BOOKS.find(b => b.id === id); if (!book) return;
   if (currentUser && book.seller_email === currentUser.email) { showToast('Đây là sách của bạn', 'error'); return; }
+  if (book.status !== 'selling') { showToast('Sách này đã có người đặt mua', 'error'); return; }
 
-  // Update book status and buyer_id
-  book.status = 'done';
+  // Update book status to 'exchanging' (pending seller approval)
+  book.status = 'exchanging';
   book.buyer_id = currentUser?.id || null;
-  await updateBookInSupabase(id, { status: 'done', buyer_id: book.buyer_id });
+  book.buyer_name = currentUser?.name || 'Người mua';
+  await updateBookInSupabase(id, { status: 'exchanging', buyer_id: book.buyer_id, buyer_name: book.buyer_name });
 
-  // Create notification for seller
+  // Create notification for seller - request approval
   if (currentUser) {
     await saveNotificationToSupabase({
       user_id: book.seller_id,
-      type: 'buy',
-      title: 'Sách đã được mua!',
-      body: `${currentUser.name} đã mua cuốn "${book.title}" của bạn.`,
+      type: 'buy_request',
+      title: 'Yêu cầu mua sách mới!',
+      body: `${currentUser.name} muốn mua cuốn "${book.title}" của bạn. Vào mục "Đang trao đổi" để duyệt.`,
       book_id: id,
       unread: true
     });
   }
 
-  showToast('Mua thành công!', 'success');
+  showToast('Đã gửi yêu cầu mua! Chờ người bán duyệt.', 'success');
   renderHomeBooks();
 
-  // Chuyển hướng sang trang Sách đã mua
+  // Chuyển hướng sang tab Đang trao đổi
   gotoPage('mybooks');
   setTimeout(() => {
-    const btn = document.querySelector('.mybooks-tab[onclick*="mb-bought"]');
-    if (btn) switchMybooksTab(btn, 'mb-bought');
+    const btn = document.querySelector('.mybooks-tab[onclick*="mb-exchange"]');
+    if (btn) switchMybooksTab(btn, 'mb-exchange');
   }, 50);
 }
 
@@ -820,10 +904,43 @@ function switchInboxTab(btn, tabId) {
 // ════════════════════════════════════
 //  MY BOOKS
 // ════════════════════════════════════
-function myBookRowHTML(book) {
+function myBookRowHTML(book, context) {
   const statusMap = { selling: 'ms-available', exchanging: 'ms-exchange', done: 'ms-done' };
   const statusLabel = { selling: 'Có sẵn', exchanging: 'Đang trao đổi', done: 'Đã hoàn thành' };
   const isExchanging = book.status === 'exchanging';
+  const isSeller = currentUser && book.seller_email === currentUser.email;
+  const isBuyer = currentUser && book.buyer_id === currentUser.id;
+
+  // Build action buttons based on context
+  let actionHTML = '';
+  if (isExchanging && isSeller) {
+    // Seller sees approve/reject buttons
+    actionHTML = `
+      <div class="mybook-buyer-info" style="font-size:12px;color:var(--gray-500);margin-bottom:4px">
+        👤 Người mua: <strong>${book.buyer_name || 'Ẩn danh'}</strong>
+      </div>
+      <button class="btn-complete-deal" onclick="event.stopPropagation();askCompleteDeal(${book.id})">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Duyệt bán
+      </button>
+      <button class="btn-reject-deal" onclick="event.stopPropagation();askRejectDeal(${book.id})" style="margin-top:4px;padding:6px 14px;border-radius:8px;border:1.5px solid var(--red);background:transparent;color:var(--red);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px;transition:all .2s">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        Từ chối
+      </button>`;
+  } else if (isExchanging && isBuyer) {
+    // Buyer sees pending status
+    actionHTML = `
+      <div style="font-size:12px;color:var(--amber-600, #D97706);font-weight:500;display:flex;align-items:center;gap:4px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Chờ người bán duyệt
+      </div>`;
+  } else if (isExchanging) {
+    actionHTML = `<button class="btn-complete-deal" onclick="event.stopPropagation();askCompleteDeal(${book.id})">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Hoàn thành
+      </button>`;
+  }
+
   return `<div class="mybook-row" onclick="openDetail(${book.id})">
     <div class="mybook-img">${book.imgs && book.imgs[0] && book.imgs[0].startsWith('data:') ? `<img src="${book.imgs[0]}" alt="${book.title}">` : book.imgs[0] || '📗'}</div>
     <div class="mybook-info">
@@ -837,10 +954,7 @@ function myBookRowHTML(book) {
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0">
       <span class="mybook-status ${statusMap[book.status] || 'ms-available'}">${statusLabel[book.status] || 'Có sẵn'}</span>
-      ${isExchanging ? `<button class="btn-complete-deal" onclick="event.stopPropagation();askCompleteDeal(${book.id})">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-        Hoàn thành
-      </button>` : ''}
+      ${actionHTML}
     </div>
   </div>`;
 }
@@ -848,17 +962,24 @@ function myBookRowHTML(book) {
 function renderMyBooks() {
   if (!currentUser) return;
   const mine = BOOKS.filter(b => b.seller_email === currentUser.email);
-  const bought = BOOKS.filter(b => b.buyer_id === currentUser.id);
+  const boughtDone = BOOKS.filter(b => b.buyer_id === currentUser.id && b.status === 'done');
+  const buyingPending = BOOKS.filter(b => b.buyer_id === currentUser.id && b.status === 'exchanging');
 
-  const all = mine.length ? mine.map(myBookRowHTML).join('') : '<div class="empty-state"><div class="empty-icon">📚</div><h3>Chưa có sách nào</h3><p>Đăng sách đầu tiên của bạn!</p></div>';
+  const all = mine.length ? mine.map(b => myBookRowHTML(b, 'all')).join('') : '<div class="empty-state"><div class="empty-icon">📚</div><h3>Chưa có sách nào</h3><p>Đăng sách đầu tiên của bạn!</p></div>';
   document.getElementById('mybooks-list').innerHTML = all;
-  document.getElementById('mybooks-selling-list').innerHTML = mine.filter(b => b.status === 'selling').map(myBookRowHTML).join('') || '<div class="empty-state"><div class="empty-icon">📭</div><h3>Không có sách đang bán</h3></div>';
-  document.getElementById('mybooks-exchange-list').innerHTML = mine.filter(b => b.status === 'exchanging').map(myBookRowHTML).join('') || '<div class="empty-state"><div class="empty-icon">🤝</div><h3>Không có giao dịch đang diễn ra</h3></div>';
-  document.getElementById('mybooks-done-list').innerHTML = mine.filter(b => b.status === 'done').map(myBookRowHTML).join('') || '<div class="empty-state"><div class="empty-icon">🎉</div><h3>Chưa có giao dịch hoàn thành</h3></div>';
+  document.getElementById('mybooks-selling-list').innerHTML = mine.filter(b => b.status === 'selling').map(b => myBookRowHTML(b, 'selling')).join('') || '<div class="empty-state"><div class="empty-icon">📭</div><h3>Không có sách đang bán</h3></div>';
 
+  // "Đang trao đổi" tab: sách mình bán đang chờ duyệt + sách mình mua đang chờ duyệt
+  const exchangeSellerBooks = mine.filter(b => b.status === 'exchanging');
+  const allExchangeBooks = [...exchangeSellerBooks.map(b => myBookRowHTML(b, 'exchange-seller')), ...buyingPending.filter(b => !exchangeSellerBooks.find(s => s.id === b.id)).map(b => myBookRowHTML(b, 'exchange-buyer'))];
+  document.getElementById('mybooks-exchange-list').innerHTML = allExchangeBooks.length ? allExchangeBooks.join('') : '<div class="empty-state"><div class="empty-icon">🤝</div><h3>Không có giao dịch đang diễn ra</h3></div>';
+
+  document.getElementById('mybooks-done-list').innerHTML = mine.filter(b => b.status === 'done').map(b => myBookRowHTML(b, 'done')).join('') || '<div class="empty-state"><div class="empty-icon">🎉</div><h3>Chưa có giao dịch hoàn thành</h3></div>';
+
+  // "Sách đã mua" tab: chỉ hiện sách đã được người bán duyệt (status: 'done')
   const boughtContainer = document.getElementById('mybooks-bought-list');
   if (boughtContainer) {
-    boughtContainer.innerHTML = bought.length ? bought.map(myBookRowHTML).join('') : '<div class="empty-state"><div class="empty-icon">🛒</div><h3>Chưa mua cuốn sách nào</h3></div>';
+    boughtContainer.innerHTML = boughtDone.length ? boughtDone.map(b => myBookRowHTML(b, 'bought')).join('') : '<div class="empty-state"><div class="empty-icon">🛒</div><h3>Chưa mua cuốn sách nào</h3><p>Sách sẽ xuất hiện ở đây khi người bán duyệt đơn</p></div>';
   }
 
   document.getElementById('prof-book-count').textContent = `${mine.length} cuốn`;
@@ -880,14 +1001,21 @@ let pendingCompleteId = null;
 function askCompleteDeal(bookId) {
   const book = BOOKS.find(b => b.id === bookId); if (!book) return;
   pendingCompleteId = bookId;
-  document.getElementById('confirm-modal-msg').innerHTML =
-    `Bạn xác nhận đã giao sách <strong>"${book.title}"</strong> thành công cho người mua?<br><span style="color:var(--gray-400);font-size:13px">Hành động này không thể hoàn tác.</span>`;
+  document.getElementById('confirm-modal-icon-el').textContent = '🎉';
+  document.getElementById('confirm-ok-btn').textContent = '✅ Duyệt bán';
+  document.getElementById('confirm-ok-btn').onclick = confirmCompleteDeal;
+  document.getElementById('confirm-modal-msg').innerHTML = `Bạn muốn duyệt bán cuốn <strong>"${book.title}"</strong> cho <strong>${book.buyer_name || 'người mua'}</strong>?`;
   document.getElementById('confirm-overlay').classList.add('open');
 }
 
 function closeConfirm() {
   document.getElementById('confirm-overlay').classList.remove('open');
   pendingCompleteId = null;
+  pendingRejectId = null;
+  // Reset modal to default state
+  document.getElementById('confirm-modal-icon-el').textContent = '🎉';
+  document.getElementById('confirm-ok-btn').textContent = '✅ Duyệt bán';
+  document.getElementById('confirm-ok-btn').onclick = confirmCompleteDeal;
 }
 
 async function confirmCompleteDeal() {
@@ -896,16 +1024,83 @@ async function confirmCompleteDeal() {
   if (book) {
     book.status = 'done';
     await updateBookInSupabase(pendingCompleteId, { status: 'done' });
+
+    // Notify the buyer that the seller approved
+    if (book.buyer_id) {
+      await saveNotificationToSupabase({
+        user_id: book.buyer_id,
+        type: 'buy_approved',
+        title: 'Đơn mua đã được duyệt! 🎉',
+        body: `Người bán đã duyệt đơn mua cuốn "${book.title}". Liên hệ người bán để nhận sách nhé!`,
+        book_id: pendingCompleteId,
+        unread: true
+      });
+    }
+
     renderMyBooks();
     renderHomeBooks();
-    showToast('🎉 Giao dịch hoàn thành! Cảm ơn bạn đã sử dụng Libre-Share.', 'success');
+    showToast('🎉 Đã duyệt đơn mua! Giao dịch hoàn thành.', 'success');
   }
   closeConfirm();
 }
 
+// Reject deal - seller refuses the buy request
+let pendingRejectId = null;
+
+function askRejectDeal(bookId) {
+  const book = BOOKS.find(b => b.id === bookId); if (!book) return;
+  pendingRejectId = bookId;
+  document.getElementById('confirm-modal-msg').innerHTML = `Bạn muốn từ chối yêu cầu mua cuốn <strong>"${book.title}"</strong> từ <strong>${book.buyer_name || 'người mua'}</strong>?`;
+  document.getElementById('confirm-modal-icon-el').textContent = '❌';
+  document.getElementById('confirm-ok-btn').textContent = '❌ Từ chối';
+  document.getElementById('confirm-ok-btn').onclick = confirmRejectDeal;
+  document.getElementById('confirm-overlay').classList.add('open');
+}
+
+async function confirmRejectDeal() {
+  if (!pendingRejectId) return;
+  const book = BOOKS.find(b => b.id === pendingRejectId);
+  if (book) {
+    const rejectedBuyerId = book.buyer_id;
+    const rejectedBuyerName = book.buyer_name;
+
+    book.status = 'selling';
+    book.buyer_id = null;
+    book.buyer_name = null;
+    await updateBookInSupabase(pendingRejectId, { status: 'selling', buyer_id: null, buyer_name: null });
+
+    // Notify the buyer about rejection
+    if (rejectedBuyerId) {
+      await saveNotificationToSupabase({
+        user_id: rejectedBuyerId,
+        type: 'buy_rejected',
+        title: 'Yêu cầu mua bị từ chối',
+        body: `Người bán đã từ chối yêu cầu mua cuốn "${book.title}". Bạn có thể tìm cuốn sách khác.`,
+        book_id: pendingRejectId,
+        unread: true
+      });
+    }
+
+    renderMyBooks();
+    renderHomeBooks();
+    showToast('Đã từ chối yêu cầu mua. Sách đã trở về trạng thái "Có sẵn".', 'success');
+  }
+  closeConfirmAndReset();
+}
+
+function closeConfirmAndReset() {
+  document.getElementById('confirm-overlay').classList.remove('open');
+  pendingCompleteId = null;
+  pendingRejectId = null;
+  // Reset modal to default state
+  document.getElementById('confirm-modal-icon-el').textContent = '🎉';
+  document.getElementById('confirm-ok-btn').textContent = '✅ Hoàn thành';
+  document.getElementById('confirm-ok-btn').onclick = confirmCompleteDeal;
+}
+
 // Close modal when clicking outside
 document.getElementById('confirm-overlay').addEventListener('click', function (e) {
-  if (e.target === this) closeConfirm();
+  if (e.target === this) closeConfirmAndReset();
 });
 
 // ════════════════════════════════════
@@ -1014,6 +1209,20 @@ function saveProfile() {
     document.getElementById('prof-avatar').textContent = initials;
     document.getElementById('prof-name').textContent = currentUser.name;
     updateContactDisplay();
+
+    // Đồng bộ contact cho tất cả sách của người này trong local cache
+    BOOKS.forEach(b => {
+      if (b.seller_id === currentUser.id) {
+        b.contact = currentUser.facebook;
+        b.zalo_number = currentUser.zalo;
+      }
+    });
+    // Đồng bộ lên bảng books ở Supabase (chạy ngầm)
+    supabase.from('books').update({
+      contact: currentUser.facebook,
+      zalo_number: currentUser.zalo
+    }).eq('seller_id', currentUser.id).then();
+
     showToast('✅ Đã cập nhật hồ sơ', 'success');
   }).catch(error => {
     showToast('Lỗi khi cập nhật: ' + (error.message || 'Vui lòng thử lại'), 'error');
@@ -1080,6 +1289,18 @@ function initRealtimeChat() {
         renderInbox();
         showToast('🔔 ' + newNotif.title, 'success');
       }
+    })
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'books' }, payload => {
+      const updatedBook = payload.new;
+      const idx = BOOKS.findIndex(b => b.id === updatedBook.id);
+      if (idx !== -1) {
+        BOOKS[idx] = { ...BOOKS[idx], ...updatedBook };
+      }
+      // Re-render if on mybooks page
+      if (document.getElementById('page-mybooks').classList.contains('active')) {
+        renderMyBooks();
+      }
+      renderHomeBooks();
     })
     .subscribe();
 }
